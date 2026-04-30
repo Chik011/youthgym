@@ -1,0 +1,393 @@
+package com.chiko0085.testgym.ui.screens
+
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import com.chiko0085.testgym.Member
+import kotlin.math.pow
+
+@Composable
+fun MemberMainScreen(
+    initialMember: Member,
+    memberList: List<Member>,
+    onLogout: () -> Unit
+) {
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val currentMember = memberList.find { it.id == initialMember.id } ?: initialMember
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                tonalElevation = 8.dp
+            ) {
+                NavigationBarItem(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    icon = { Icon(Icons.Default.Home, contentDescription = null) },
+                    label = { Text("Home") }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    icon = { Icon(Icons.Default.Favorite, contentDescription = null) },
+                    label = { Text("Padel") }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
+                    icon = { Icon(Icons.Default.Refresh, contentDescription = null) },
+                    label = { Text("Scan") }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 3,
+                    onClick = { selectedTab = 3 },
+                    icon = { Icon(Icons.Default.Info, contentDescription = null) },
+                    label = { Text("About") }
+                )
+                NavigationBarItem(
+                    selected = selectedTab == 4,
+                    onClick = { selectedTab = 4 },
+                    icon = { Icon(Icons.Default.Person, contentDescription = null) },
+                    label = { Text("Profil") }
+                )
+            }
+        }
+    ) { padding ->
+        Box(modifier = Modifier.padding(padding)) {
+            when (selectedTab) {
+                0 -> MemberHomeScreen(currentMember)
+                1 -> PadelScreen()
+                2 -> MemberScanScreen(title = "QR Kehadiran")
+                3 -> AboutUsScreen()
+                4 -> MemberProfileScreen(currentMember, onLogout)
+            }
+        }
+    }
+}
+
+@Composable
+fun MemberHomeScreen(member: Member) {
+    val context = LocalContext.current
+    var weightInput by remember { mutableStateOf(if(member.weight > 0) member.weight.toString() else "") }
+    var heightInput by remember { mutableStateOf(if(member.height > 0) member.height.toString() else "") }
+    var showTutorialCamera by remember { mutableStateOf(false) }
+
+    val mainGradient = Brush.linearGradient(
+        listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)
+    )
+
+    if (showTutorialCamera) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            MemberScanScreen(title = "QR Code Alat (Tutorial)")
+            IconButton(
+                onClick = { showTutorialCamera = false },
+                modifier = Modifier
+                    .padding(16.dp)
+                    .align(Alignment.TopEnd)
+                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+            ) {
+                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+            }
+        }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Selamat Datang,", fontSize = 16.sp, color = Color.Gray)
+            Text(member.name, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                elevation = CardDefaults.cardElevation(8.dp)
+            ) {
+                Box(modifier = Modifier.background(mainGradient).padding(32.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Sisa Kuota Latihan", color = Color.White.copy(alpha = 0.8f))
+                        Text("${member.remainingDays}", fontSize = 64.sp, fontWeight = FontWeight.Black, color = Color.White)
+                        Text("HARI LAGI", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(
+                    onClick = { 
+                        val url = "https://wa.me/+628123456789"
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                    },
+                    modifier = Modifier.weight(1f).height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366)),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.Call, null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("WhatsApp", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+                
+                Button(
+                    onClick = { showTutorialCamera = true },
+                    modifier = Modifier.weight(1f).height(56.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.Search, null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("QR Alat", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            // BMI Calculator Section
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                elevation = CardDefaults.cardElevation(2.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("BMI & Ideal Weight Calculator", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    Text("Pantau kondisi fisikmu", fontSize = 12.sp, color = Color.Gray)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    OutlinedTextField(
+                        value = weightInput,
+                        onValueChange = { weightInput = it },
+                        label = { Text("Berat (kg)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = heightInput,
+                        onValueChange = { heightInput = it },
+                        label = { Text("Tinggi (cm)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    
+                    val weight = weightInput.toDoubleOrNull() ?: 0.0
+                    val height = heightInput.toDoubleOrNull() ?: 0.0
+
+                    if (weight > 0 && height > 0) {
+                        val heightInMeters = height / 100.0
+                        val bmi = weight / heightInMeters.pow(2.0)
+                        val category = when {
+                            bmi < 18.5 -> "Kurus"
+                            bmi < 24.9 -> "Normal"
+                            bmi < 29.9 -> "Overweight"
+                            else -> "Obesitas"
+                        }
+                        
+                        // Ideal Weight Calculation (BMI 18.5 - 24.9 range)
+                        val idealLow = 18.5 * heightInMeters.pow(2.0)
+                        val idealHigh = 24.9 * heightInMeters.pow(2.0)
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Surface(
+                            color = if(category == "Normal") Color(0xFFE8F5E9) else Color(0xFFFFEBEE),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("BMI: ${String.format("%.1f", bmi)} ($category)", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = if(category == "Normal") Color(0xFF2E7D32) else Color(0xFFC62828))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Berat Badan Ideal Anda:", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                Text("${String.format("%.1f", idealLow)} kg - ${String.format("%.1f", idealHigh)} kg", fontWeight = FontWeight.Black, fontSize = 20.sp, color = Color(0xFF1976D2))
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                member.weight = weight
+                                member.height = height
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Simpan ke Profil")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PadelScreen() {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text("Layanan Padel", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.DateRange, null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Reservasi Lapangan", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                }
+                Text("Booking jadwal main Padel Anda secara real-time.", fontSize = 12.sp, color = Color.Gray)
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(onClick = { /* Logic */ }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Cek Ketersediaan")
+                }
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.ThumbUp, null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Penyewaan Alat", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                }
+                Text("Sewa raket Padel dan bola berkualitas.", fontSize = 12.sp, color = Color.Gray)
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(onClick = { /* Logic */ }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Lihat Katalog Alat")
+                }
+            }
+        }
+
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Face, null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Layanan Padel (Coach)", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                }
+                Text("Butuh pelatih? Kami menyediakan jasa coach profesional.", fontSize = 12.sp, color = Color.Gray)
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(onClick = { /* Logic */ }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Hubungi Coach")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AboutUsScreen() {
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("About Us", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary)
+        Spacer(modifier = Modifier.height(24.dp))
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(4.dp)) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text("Youth Gym", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Aplikasi Manajemen Fasilitas Olahraga Pintar yang dirancang untuk memudahkan member dalam memantau sisa kuota latihan dan reservasi fasilitas olahraga modern.", textAlign = TextAlign.Justify)
+            }
+        }
+    }
+}
+
+@Composable
+fun MemberScanScreen(title: String) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var hasCameraPermission by remember {
+        mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
+    }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { hasCameraPermission = it }
+    LaunchedEffect(Unit) { launcher.launch(Manifest.permission.CAMERA) }
+
+    if (hasCameraPermission) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            AndroidView(factory = { ctx ->
+                PreviewView(ctx).apply {
+                    ProcessCameraProvider.getInstance(ctx).addListener({
+                        val provider = ProcessCameraProvider.getInstance(ctx).get()
+                        val preview = Preview.Builder().build().also { it.setSurfaceProvider(surfaceProvider) }
+                        try {
+                            provider.unbindAll()
+                            provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview)
+                        } catch (e: Exception) {}
+                    }, ContextCompat.getMainExecutor(ctx))
+                }
+            }, modifier = Modifier.fillMaxSize())
+            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)))
+            Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(modifier = Modifier.background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(16.dp)).padding(20.dp)) {
+                    Text(title, color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MemberProfileScreen(member: Member, onLogout: () -> Unit) {
+    var name by remember { mutableStateOf(member.name) }
+    var weight by remember { mutableStateOf(if(member.weight > 0) member.weight.toString() else "") }
+    var height by remember { mutableStateOf(if(member.height > 0) member.height.toString() else "") }
+
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Profil Saya", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+        Spacer(modifier = Modifier.height(24.dp))
+        Surface(modifier = Modifier.size(80.dp), shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
+            Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Person, null, modifier = Modifier.size(50.dp), tint = MaterialTheme.colorScheme.primary) }
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nama Lengkap") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedTextField(value = weight, onValueChange = { weight = it }, label = { Text("Berat (kg)") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp))
+            OutlinedTextField(value = height, onValueChange = { height = it }, label = { Text("Tinggi (cm)") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp))
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(onClick = {
+            member.name = name
+            member.weight = weight.toDoubleOrNull() ?: 0.0
+            member.height = height.toDoubleOrNull() ?: 0.0
+        }, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(16.dp)) {
+            Text("Simpan Perubahan", fontWeight = FontWeight.Bold)
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        TextButton(onClick = onLogout) { Text("Logout / Keluar", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold) }
+    }
+}
