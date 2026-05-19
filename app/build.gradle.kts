@@ -54,7 +54,16 @@ dependencies {
 
     // Gson for storage
     implementation(libs.google.gson)
+    // BOM untuk versi Compose yang seragam
+    implementation(platform("androidx.compose:compose-bom:2024.02.00")) // atau versi terbaru
 
+    // Dependensi dasar Compose
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.material3:material3")
+
+    // INI YANG PALING PENTING UNTUK ERROR 'Icons':
+    implementation("androidx.compose.material:material-icons-extended")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
